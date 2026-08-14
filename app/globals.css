@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #fdf6e3;
+  color: #111111;
+}
+
+/* Utility neo-brutalist yang dipakai berulang */
+@layer components {
+  .nb-border {
+    @apply border-[3px] border-nb-ink;
+  }
+  .nb-card {
+    @apply nb-border bg-white shadow-nb;
+  }
+  .nb-btn {
+    @apply nb-border bg-nb-yellow px-5 py-3 font-extrabold uppercase tracking-tight
+           shadow-nb transition-all
+           hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-nb-sm
+           active:translate-x-[6px] active:translate-y-[6px] active:shadow-none
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .nb-input {
+    @apply nb-border bg-white px-3 py-2 font-semibold outline-none
+           focus:bg-nb-yellow/20;
+  }
+}
