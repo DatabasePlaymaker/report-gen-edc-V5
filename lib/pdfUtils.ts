@@ -12,21 +12,15 @@ export function fileToDataUrl(file: File): Promise<string> {
 }
 
 // Render halaman pertama PDF ke PNG kecil (thumbnail).
-// pdf.js dimuat dinamis + worker diarahkan ke file di dalam paket agar
-// tidak perlu konfigurasi CDN. Jika gagal, lempar error (pemanggil boleh
-// fallback ke placeholder — merge tetap bisa jalan tanpa thumbnail).
 export async function pdfFirstPageThumb(
   file: File,
   maxWidth = 300
 ): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
 
-  // Worker: pakai file worker bawaan paket lewat URL modul (didukung bundler Next.js).
-  // @ts-expect-error - properti workerSrc ada saat runtime
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-  ).toString();
+  // Worker: Diarahkan ke CDN publik menggunakan versi yang sama dengan package yang terinstal.
+  // Ini mencegah Next.js/Terser mencoba mem-parsing file worker saat proses build Vercel.
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
   const buf = await file.arrayBuffer();
   const doc = await pdfjs.getDocument({ data: buf }).promise;
