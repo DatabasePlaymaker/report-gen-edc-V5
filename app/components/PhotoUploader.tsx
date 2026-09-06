@@ -3,9 +3,100 @@
 import { useRef, useState } from "react";
 import type { PhotoItem } from "@/lib/types";
 import { resizeMany } from "@/lib/imageResize";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 let idCounter = 0;
 const nextId = () => `p_${Date.now()}_${idCounter++}`;
+
+// ---- Kartu foto tunggal (sortable) ----
+function PhotoCard({
+  photo,
+  onUpdate,
+  onRemove,
+}: {
+  photo: PhotoItem;
+  onUpdate: (patch: Partial<PhotoItem>) => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: photo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.85 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="nb-border bg-white shadow-nb-sm"
+    >
+      <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photo.dataUrl}
+          alt={photo.caption}
+          className="h-32 w-full border-b-[3px] border-nb-ink object-cover"
+        />
+        {/* Handle drag: HANYA elemen ini yang memicu drag, supaya input tetap bisa diedit */}
+        <button
+          type="button"
+          className="absolute left-1 top-1 cursor-grab nb-border bg-nb-yellow px-2 py-0.5 text-sm font-black leading-none shadow-nb-sm active:cursor-grabbing"
+          title="Tahan & seret untuk memindahkan"
+          {...attributes}
+          {...listeners}
+        >
+          ⠿
+        </button>
+      </div>
+      <div className="flex flex-col gap-1 p-2">
+        <input
+          className="nb-border bg-white px-2 py-1 text-xs font-bold outline-none"
+          value={photo.caption}
+          onChange={(e) => onUpdate({ caption: e.target.value })}
+          placeholder="Caption"
+        />
+        <input
+          className="nb-border bg-white px-2 py-1 text-[10px] font-semibold outline-none"
+          value={photo.indexNumber || ""}
+          onChange={(e) => onUpdate({ indexNumber: e.target.value })}
+          placeholder="Index no. (opsional)"
+        />
+        <button
+          type="button"
+          className="nb-border bg-nb-pink py-1 text-xs font-black"
+          onClick={onRemove}
+        >
+          ✕ Hapus
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function PhotoUploader({
   photos,
@@ -19,8 +110,23 @@ export function PhotoUploader({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(
     null
   );
-  // Caption default yang diterapkan ke semua foto baru saat diupload.
   const [batchCaption, setBatchCaption] = useState("EDC BARU");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = photos.findIndex((p) => p.id === active.id);
+    const newIndex = photos.findIndex((p) => p.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    onChange(arrayMove(photos, oldIndex, newIndex));
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -49,14 +155,6 @@ export function PhotoUploader({
   }
   function removeItem(id: string) {
     onChange(photos.filter((p) => p.id !== id));
-  }
-  function move(id: string, dir: -1 | 1) {
-    const i = photos.findIndex((p) => p.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= photos.length) return;
-    const copy = [...photos];
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-    onChange(copy);
   }
 
   return (
@@ -103,64 +201,35 @@ export function PhotoUploader({
         )}
       </div>
 
+      {photos.length > 0 && (
+        <p className="mb-3 text-xs font-bold text-gray-500">
+          Seret ikon ⠿ di pojok foto untuk mengubah urutan.
+        </p>
+      )}
+
       {photos.length === 0 ? (
         <div className="nb-border border-dashed bg-white/50 p-10 text-center font-bold text-gray-500">
           Belum ada foto. Klik “Tambah Foto”.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {photos.map((p, i) => (
-            <div key={p.id} className="nb-border bg-white shadow-nb-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.dataUrl}
-                alt={p.caption}
-                className="h-32 w-full border-b-[3px] border-nb-ink object-cover"
-              />
-              <div className="flex flex-col gap-1 p-2">
-                <input
-                  className="nb-border bg-white px-2 py-1 text-xs font-bold outline-none"
-                  value={p.caption}
-                  onChange={(e) => updateItem(p.id, { caption: e.target.value })}
-                  placeholder="Caption"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={photos.map((p) => p.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {photos.map((p) => (
+                <PhotoCard
+                  key={p.id}
+                  photo={p}
+                  onUpdate={(patch) => updateItem(p.id, patch)}
+                  onRemove={() => removeItem(p.id)}
                 />
-                <input
-                  className="nb-border bg-white px-2 py-1 text-[10px] font-semibold outline-none"
-                  value={p.indexNumber || ""}
-                  onChange={(e) =>
-                    updateItem(p.id, { indexNumber: e.target.value })
-                  }
-                  placeholder="Index no. (opsional)"
-                />
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    className="nb-border flex-1 bg-nb-cyan py-1 text-xs font-black disabled:opacity-30"
-                    disabled={i === 0}
-                    onClick={() => move(p.id, -1)}
-                  >
-                    ←
-                  </button>
-                  <button
-                    type="button"
-                    className="nb-border flex-1 bg-nb-cyan py-1 text-xs font-black disabled:opacity-30"
-                    disabled={i === photos.length - 1}
-                    onClick={() => move(p.id, 1)}
-                  >
-                    →
-                  </button>
-                  <button
-                    type="button"
-                    className="nb-border flex-1 bg-nb-pink py-1 text-xs font-black"
-                    onClick={() => removeItem(p.id)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );
