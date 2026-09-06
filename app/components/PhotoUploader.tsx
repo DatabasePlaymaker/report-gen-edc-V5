@@ -26,10 +26,12 @@ const nextId = () => `p_${Date.now()}_${idCounter++}`;
 // ---- Kartu foto tunggal (sortable) ----
 function PhotoCard({
   photo,
+  defaultCaption,
   onUpdate,
   onRemove,
 }: {
   photo: PhotoItem;
+  defaultCaption: string;
   onUpdate: (patch: Partial<PhotoItem>) => void;
   onRemove: () => void;
 }) {
@@ -78,7 +80,8 @@ function PhotoCard({
           className="nb-border bg-white px-2 py-1 text-xs font-bold outline-none"
           value={photo.caption}
           onChange={(e) => onUpdate({ caption: e.target.value })}
-          placeholder="Caption"
+          /* Kosong = ikut caption default. Placeholder menunjukkan nilai yang akan dipakai. */
+          placeholder={defaultCaption || "Caption"}
         />
         <input
           className="nb-border bg-white px-2 py-1 text-[10px] font-semibold outline-none"
@@ -101,16 +104,19 @@ function PhotoCard({
 export function PhotoUploader({
   photos,
   onChange,
+  defaultCaption,
+  onDefaultCaptionChange,
 }: {
   photos: PhotoItem[];
   onChange: (p: PhotoItem[]) => void;
+  defaultCaption: string;
+  onDefaultCaptionChange: (v: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(
     null
   );
-  const [batchCaption, setBatchCaption] = useState("EDC BARU");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -136,10 +142,11 @@ export function PhotoUploader({
       const dataUrls = await resizeMany(arr, (done, total) =>
         setProgress({ done, total })
       );
+      // Caption sengaja dikosongkan; PDF akan memakai caption default sebagai fallback.
       const newItems: PhotoItem[] = dataUrls.map((dataUrl) => ({
         id: nextId(),
         dataUrl,
-        caption: batchCaption,
+        caption: "",
         indexNumber: "",
       }));
       onChange([...photos, ...newItems]);
@@ -168,8 +175,8 @@ export function PhotoUploader({
           <span className="text-xs font-black uppercase">Caption default</span>
           <input
             className="nb-input"
-            value={batchCaption}
-            onChange={(e) => setBatchCaption(e.target.value)}
+            value={defaultCaption}
+            onChange={(e) => onDefaultCaptionChange(e.target.value)}
             placeholder="EDC BARU"
           />
         </label>
@@ -203,7 +210,7 @@ export function PhotoUploader({
 
       {photos.length > 0 && (
         <p className="mb-3 text-xs font-bold text-gray-500">
-          Seret ikon ⠿ di pojok foto untuk mengubah urutan.
+          Kolom caption kosong akan memakai caption default. Seret ikon ⠿ untuk mengubah urutan.
         </p>
       )}
 
@@ -223,6 +230,7 @@ export function PhotoUploader({
                 <PhotoCard
                   key={p.id}
                   photo={p}
+                  defaultCaption={defaultCaption}
                   onUpdate={(patch) => updateItem(p.id, patch)}
                   onRemove={() => removeItem(p.id)}
                 />

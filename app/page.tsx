@@ -21,6 +21,9 @@ export default function Home() {
   const [meta, setMeta] = useState<ReportMeta>(DEFAULT_META);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  // Caption default dipegang di sini agar bisa dipakai PhotoUploader (kolom input)
+  // DAN diteruskan ke PDF sebagai fallback untuk foto yang caption-nya kosong.
+  const [defaultCaption, setDefaultCaption] = useState("EDC BARU");
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -35,7 +38,12 @@ export default function Home() {
 
       <div className="flex flex-col gap-6">
         <MetaForm meta={meta} onChange={setMeta} />
-        <PhotoUploader photos={photos} onChange={setPhotos} />
+        <PhotoUploader
+          photos={photos}
+          onChange={setPhotos}
+          defaultCaption={defaultCaption}
+          onDefaultCaptionChange={setDefaultCaption}
+        />
         <AttachmentUploader attachments={attachments} onChange={setAttachments} />
 
         <div className="nb-card flex flex-col items-center justify-between gap-4 p-5 sm:flex-row">
@@ -49,7 +57,7 @@ export default function Home() {
               PDF dibuat di browser. Foto & lampiran otomatis dikompres.
             </p>
           </div>
-          <ExportButton data={{ meta, photos, attachments }} />
+          <ExportButton data={{ meta, photos, attachments, defaultCaption }} />
         </div>
       </div>
 

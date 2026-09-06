@@ -33,4 +33,5 @@ export interface ReportData {
   meta: ReportMeta;
   photos: PhotoItem[];
   attachments: AttachmentItem[];
+  defaultCaption: string;
 }

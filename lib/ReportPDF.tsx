@@ -11,8 +11,8 @@ import type { ReportData } from "./types";
 
 // ============================================================
 // Bagian FOTO saja (1 foto per halaman, caption bold di atas).
-// Lampiran (PDF/gambar) TIDAK di sini — digabung terpisah via pdf-lib
-// di buildMergedPdf.tsx, supaya file PDF lampiran bisa disisipkan utuh.
+// Caption per-foto yang kosong akan memakai defaultCaption sebagai fallback.
+// Lampiran (PDF/gambar) digabung terpisah via pdf-lib di buildMergedPdf.tsx.
 // ============================================================
 
 const styles = StyleSheet.create({
@@ -43,19 +43,23 @@ const styles = StyleSheet.create({
 });
 
 export function ReportPDF({ data }: { data: ReportData }) {
-  const { photos, meta } = data;
+  const { photos, meta, defaultCaption } = data;
 
   return (
     <Document title={meta.title} author={meta.engineer || "PT CSI"}>
-      {photos.map((p) => (
-        <Page key={p.id} size="A4" style={styles.page}>
-          <Text style={styles.caption}>{p.caption || "\u2014"}</Text>
-          <View style={styles.photoBox}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image style={styles.photo} src={p.dataUrl} />
-          </View>
-        </Page>
-      ))}
+      {photos.map((p) => {
+        // Prioritas: caption manual foto → kalau kosong, pakai caption default → kalau itu juga kosong, em-dash.
+        const captionText = p.caption.trim() || defaultCaption.trim() || "\u2014";
+        return (
+          <Page key={p.id} size="A4" style={styles.page}>
+            <Text style={styles.caption}>{captionText}</Text>
+            <View style={styles.photoBox}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image style={styles.photo} src={p.dataUrl} />
+            </View>
+          </Page>
+        );
+      })}
     </Document>
   );
 }
