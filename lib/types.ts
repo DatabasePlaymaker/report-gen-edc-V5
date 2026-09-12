@@ -28,7 +28,7 @@ export interface AttachmentItem {
   previewUrl?: string;  // thumbnail (halaman pertama pdf, atau sama dgn dataUrl utk image)
   fileName?: string;    // nama file asli, untuk ditampilkan di kartu PDF
   originalDataUrl?: string; // gambar asli sebelum filter scan
-  scanMode?: "none" | "grayscale" | "bw"; // filter scan aktif (hanya untuk kind "image")
+  scanMode?: "none" | "grayscale" | "bw" | "clean"; // filter scan aktif (hanya untuk kind "image")
 }
 
 export interface ReportData {

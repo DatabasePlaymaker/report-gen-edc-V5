@@ -13,6 +13,7 @@ const SCAN_LABELS: Record<ScanMode, string> = {
   none: "Asli",
   grayscale: "Abu",
   bw: "B&W",
+  clean: "Bersih",
 };
 
 export function AttachmentUploader({
@@ -198,7 +199,7 @@ export function AttachmentUploader({
 
                 {a.kind === "image" && (
                   <div className="flex gap-1">
-                    {(["none", "grayscale"] as ScanMode[]).map((mode) => {
+                    {(["none", "grayscale", "clean"] as ScanMode[]).map((mode) => {
                       const active = (a.scanMode || "none") === mode;
                       return (
                         <button
