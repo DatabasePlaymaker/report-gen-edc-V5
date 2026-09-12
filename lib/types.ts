@@ -27,6 +27,8 @@ export interface AttachmentItem {
   dataUrl: string;      // untuk image: base64 hasil resize. untuk pdf: base64 file PDF asli
   previewUrl?: string;  // thumbnail (halaman pertama pdf, atau sama dgn dataUrl utk image)
   fileName?: string;    // nama file asli, untuk ditampilkan di kartu PDF
+  originalDataUrl?: string; // gambar asli sebelum filter scan
+  scanMode?: "none" | "grayscale" | "bw"; // filter scan aktif (hanya untuk kind "image")
 }
 
 export interface ReportData {

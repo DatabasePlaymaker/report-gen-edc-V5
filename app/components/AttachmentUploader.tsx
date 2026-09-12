@@ -4,9 +4,16 @@ import { useRef, useState } from "react";
 import type { AttachmentItem } from "@/lib/types";
 import { resizeImage } from "@/lib/imageResize";
 import { fileToDataUrl, pdfFirstPageThumb } from "@/lib/pdfUtils";
+import { applyScanFilter, type ScanMode } from "@/lib/scanFilter";
 
 let attIdCounter = 0;
 const nextId = () => `a_${Date.now()}_${attIdCounter++}`;
+
+const SCAN_LABELS: Record<ScanMode, string> = {
+  none: "Asli",
+  grayscale: "Abu",
+  bw: "B&W",
+};
 
 export function AttachmentUploader({
   attachments,
@@ -18,6 +25,7 @@ export function AttachmentUploader({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [defaultLabel, setDefaultLabel] = useState("FSE Report");
+  const [filtering, setFiltering] = useState<string | null>(null);
 
   async function processOne(file: File): Promise<AttachmentItem> {
     const isPdf =
@@ -25,13 +33,13 @@ export function AttachmentUploader({
       file.name.toLowerCase().endsWith(".pdf");
 
     if (isPdf) {
-      const dataUrl = await fileToDataUrl(file); // simpan PDF asli utuh
+      const dataUrl = await fileToDataUrl(file);
       let previewUrl: string | undefined;
       try {
         previewUrl = await pdfFirstPageThumb(file);
       } catch (e) {
         console.warn("Thumbnail PDF gagal (merge tetap jalan):", e);
-        previewUrl = undefined; // placeholder ditampilkan di kartu
+        previewUrl = undefined;
       }
       return {
         id: nextId(),
@@ -43,7 +51,6 @@ export function AttachmentUploader({
       };
     }
 
-    // gambar: resize seperti foto biasa
     const dataUrl = await resizeImage(file);
     return {
       id: nextId(),
@@ -51,6 +58,8 @@ export function AttachmentUploader({
       label: defaultLabel,
       dataUrl,
       previewUrl: dataUrl,
+      originalDataUrl: dataUrl,
+      scanMode: "none",
       fileName: file.name,
     };
   }
@@ -62,7 +71,6 @@ export function AttachmentUploader({
       const arr = Array.from(files);
       const items: AttachmentItem[] = [];
       for (const f of arr) {
-        // proses berurutan supaya pdf.js tidak rebutan worker
         items.push(await processOne(f));
       }
       onChange([...attachments, ...items]);
@@ -87,6 +95,25 @@ export function AttachmentUploader({
     onChange(copy);
   }
 
+  async function setScan(att: AttachmentItem, mode: ScanMode) {
+    if (att.kind !== "image") return;
+    const src = att.originalDataUrl || att.dataUrl;
+    setFiltering(att.id);
+    try {
+      const filtered = await applyScanFilter(src, mode);
+      updateItem(att.id, {
+        dataUrl: filtered,
+        previewUrl: filtered,
+        scanMode: mode,
+      });
+    } catch (e) {
+      console.error("Filter scan gagal:", e);
+      alert("Gagal menerapkan filter. Coba lagi.");
+    } finally {
+      setFiltering(null);
+    }
+  }
+
   return (
     <div className="nb-card p-5">
       <h2 className="mb-2 text-xl font-black uppercase">
@@ -97,7 +124,8 @@ export function AttachmentUploader({
       <p className="mb-4 font-semibold text-gray-600">
         Dokumen tambahan (FSE Report, Tanda Terima) — ditaruh di akhir laporan.
         Terima <strong>PDF</strong> (disisipkan utuh, semua halaman) maupun{" "}
-        <strong>gambar</strong> (JPG/PNG, 1 halaman).
+        <strong>gambar</strong> (JPG/PNG, 1 halaman). Lampiran gambar bisa diberi
+        efek <strong>scan</strong> (Abu / B&amp;W).
       </p>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -167,6 +195,29 @@ export function AttachmentUploader({
                   onChange={(e) => updateItem(a.id, { label: e.target.value })}
                   placeholder="Label"
                 />
+
+                {a.kind === "image" && (
+                  <div className="flex gap-1">
+                    {(["none", "grayscale", "bw"] as ScanMode[]).map((mode) => {
+                      const active = (a.scanMode || "none") === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          disabled={filtering === a.id}
+                          onClick={() => setScan(a, mode)}
+                          className={
+                            "nb-border flex-1 py-1 text-[10px] font-black disabled:opacity-40 " +
+                            (active ? "bg-nb-yellow" : "bg-white")
+                          }
+                        >
+                          {filtering === a.id && active ? "…" : SCAN_LABELS[mode]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="flex gap-1">
                   <button
                     type="button"
